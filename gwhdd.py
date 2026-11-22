@@ -201,7 +201,7 @@ def prices():
         months.append((yy, mm))
     cons = [(f"NG{CODES[mm - 1]}{str(yy)[2:]}", last_trade(yy, mm)) for yy, mm in months]
     front = next(i for i, (_, lt) in enumerate(cons) if lt >= today)
-    pick = cons[max(0, front - 2):front + 2]
+    pick = cons[front:front + 2]
     cp = {(r["date"], r["contract"]): r for r in read_csv("contract_prices.csv")}
     for code, lt in pick:
         try:
