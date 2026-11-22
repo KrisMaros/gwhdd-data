@@ -2,8 +2,8 @@ name: Odczyt GWHDD i cen gazu
 
 on:
   schedule:
-    # godziny UTC: 6:05, 12:05, 18:05 i 0:05 czasu polskiego (zimą)
-    - cron: '5 5,11,17,23 * * *'
+    # co 2 godziny (minuta 5); ciężkie liczenie tylko gdy są nowe przebiegi modeli
+    - cron: '5 */2 * * *'
   workflow_dispatch:
 
 permissions:
@@ -14,7 +14,7 @@ concurrency: gwhdd
 jobs:
   odczyt:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
