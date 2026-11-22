@@ -3,7 +3,7 @@ name: Odczyt GWHDD i cen gazu
 on:
   schedule:
     # co 2 godziny (minuta 5); ciężkie liczenie tylko gdy są nowe przebiegi modeli
-    - cron: '5 */2 * * *'
+    - cron: '17 */2 * * *'
   workflow_dispatch:
 
 permissions:
