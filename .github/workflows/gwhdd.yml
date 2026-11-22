@@ -1,0 +1,31 @@
+name: Odczyt GWHDD i cen gazu
+
+on:
+  schedule:
+    # godziny UTC: 6:05, 12:05, 18:05 i 0:05 czasu polskiego (zimą)
+    - cron: '5 5,11,17,23 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency: gwhdd
+
+jobs:
+  odczyt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install requests
+      - run: python gwhdd.py
+      - name: Zapisz wyniki
+        run: |
+          git config user.name "gwhdd-bot"
+          git config user.email "gwhdd-bot@users.noreply.github.com"
+          git add data
+          git commit -m "Odczyt $(date -u +%Y-%m-%dT%H:%MZ)" || echo "bez zmian"
+          git push
