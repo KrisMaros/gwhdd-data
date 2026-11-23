@@ -1,9 +1,12 @@
 """Odczyt GWHDD USA (Open-Meteo), cen gazu (Yahoo, EIA) i szacunku popytu na ogrzewanie – GitHub Actions.
 Wersja 2: wagi punktów pogodowych liczone ze zużycia gazu do ogrzewania w stanach (EIA, gospodarstwa domowe
 i usługi, bez letniego zużycia bazowego) oraz przeliczenie GWHDD na popyt w Bcf/d z efektem weekendowym.
+Wersja 3: ceny zawsze z kontraktu śledzonego przez CFD (rolowanie 3 dni robocze przed wygaśnięciem)
+oraz szybki tryb „python gwhdd.py ceny” dla osobnego workflow cen.
 Wyniki trafiają do folderu data/, skąd zadanie Claude wstawia je do dashboardu."""
 import csv, json, os, re, time, calendar
 from datetime import datetime, timedelta, timezone, date
+from zoneinfo import ZoneInfo
 import requests
 
 D = "data"
@@ -333,14 +336,82 @@ def observed(LAT, LON, W, NN, pts):
 CODES = "FGHJKMNQUVXZ"
 
 
+CFD_ROLL_BDAYS = 3   # CFD (FxPro) przechodzi na następny kontrakt 3 dni robocze przed ostatnim dniem notowań
+
+
+def _nth(y, m, wd, n):
+    d = date(y, m, 1)
+    d += timedelta(days=(wd - d.weekday()) % 7)
+    return d + timedelta(weeks=n - 1)
+
+
+def _last(y, m, wd):
+    d = date(y, m + 1, 1) - timedelta(days=1) if m < 12 else date(y, 12, 31)
+    return d - timedelta(days=(d.weekday() - wd) % 7)
+
+
+def _observed(d):
+    return d - timedelta(days=1) if d.weekday() == 5 else d + timedelta(days=1) if d.weekday() == 6 else d
+
+
+def _easter(y):
+    a, b, c = y % 19, y // 100, y % 100
+    d, e = b // 4, b % 4
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i, k = c // 4, c % 4
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    mo = (h + l - 7 * m + 114) // 31
+    return date(y, mo, (h + l - 7 * m + 114) % 31 + 1)
+
+
+def holidays(y):
+    """Święta NYMEX (dni bez rozliczenia)."""
+    return {_observed(date(y, 1, 1)), _nth(y, 1, 0, 3), _nth(y, 2, 0, 3), _easter(y) - timedelta(days=2),
+            _last(y, 5, 0), _observed(date(y, 6, 19)), _observed(date(y, 7, 4)), _nth(y, 9, 0, 1),
+            _nth(y, 11, 3, 4), _observed(date(y, 12, 25))}
+
+
+def bday(d):
+    return d.weekday() < 5 and d not in holidays(d.year)
+
+
 def last_trade(y, m):
+    """Ostatni dzień notowań kontraktu NG: 3 dni robocze NYMEX przed 1. dniem miesiąca dostawy."""
     d = date(y, m, 1)
     n = 0
     while n < 3:
         d -= timedelta(days=1)
-        if d.weekday() < 5:
+        if bday(d):
             n += 1
     return d
+
+
+def roll_date(lt):
+    """Dzień rolowania CFD – do jego zamknięcia CFD śledzi jeszcze ten kontrakt."""
+    d, n = lt, 0
+    while n < CFD_ROLL_BDAYS:
+        d -= timedelta(days=1)
+        if bday(d):
+            n += 1
+    return d
+
+
+def contracts(today, back=2, ahead=4):
+    out = []
+    for k in range(-back, ahead):
+        mm = (today.month - 1 + k) % 12 + 1
+        yy = today.year + (today.month - 1 + k) // 12
+        lt = last_trade(yy, mm)
+        out.append((f"NG{CODES[mm - 1]}{str(yy)[2:]}", lt, roll_date(lt)))
+    return out
+
+
+def cfd_contract(d, cons):
+    """Kontrakt, który CFD śledzi w dniu d."""
+    return next(c for c in cons if c[2] >= d)
 
 
 def yahoo(sym, rng):
@@ -353,65 +424,97 @@ def yahoo(sym, rng):
     return out, j["meta"]
 
 
-def prices():
-    today = datetime.now(timezone.utc).date()
-    months = []
-    y, m = today.year, today.month
-    for k in range(-1, 4):
-        mm = (m - 1 + k) % 12 + 1
-        yy = y + (m - 1 + k) // 12
-        months.append((yy, mm))
-    cons = [(f"NG{CODES[mm - 1]}{str(yy)[2:]}", last_trade(yy, mm)) for yy, mm in months]
-    front = next(i for i, (_, lt) in enumerate(cons) if lt >= today)
-    pick = cons[front:front + 2]   # wygasłe kontrakty nie są już notowane w Yahoo; ich historia zostaje w pliku
+def market_open(now):
+    """NYMEX NG (Globex): niedziela 18:00 – piątek 17:00 czasu nowojorskiego (+ zapas 30 min)."""
+    ny = now.astimezone(ZoneInfo(TZ))
+    wd, h = ny.weekday(), ny.hour + ny.minute / 60
+    if wd == 5:
+        return False
+    if wd == 6:
+        return h >= 17.5
+    if wd == 4:
+        return h < 17.5
+    return True
+
+
+def prices(with_hh=True):
+    now = datetime.now(timezone.utc)
+    today = now.astimezone(ZoneInfo(TZ)).date()
+    cons = contracts(today)
+    cur = cfd_contract(today, cons)
+    i = cons.index(cur)
+    pick = [c for c in cons[i:i + 2]]
+    # kontrakt wcześniejszy, jeśli jeszcze notowany (po rolowaniu CFD, przed wygaśnięciem)
+    if i > 0 and cons[i - 1][1] >= today:
+        pick.insert(0, cons[i - 1])
     cp = {(r["date"], r["contract"]): r for r in read_csv("contract_prices.csv")}
-    for code, lt in pick:
+    live = {}
+    for code, lt, rd in pick:
         try:
-            rows, _ = yahoo(code + ".NYM", "3mo")
+            rows, meta = yahoo(code + ".NYM", "3mo")
             for d, c in rows:
                 if d <= lt.isoformat():
                     cp[(d, code)] = {"date": d, "contract": code, "close": f"{c:.3f}", "source": f"Yahoo {code}.NYM"}
+            live[code] = meta
         except Exception as e:
             status["errors"].append(f"{code}: {e}")
     write_csv("contract_prices.csv", ["date", "contract", "close", "source"], sorted(([r["date"], r["contract"], r["close"], r["source"]] for r in cp.values())))
 
+    # Seria „Z rolowaniem” = cena kontraktu śledzonego przez CFD w danym dniu (zawsze jeden spójny kontrakt na dzień).
     pr = {r["date"]: r for r in read_csv("prices.csv")}
+    cutoff = (today - timedelta(days=60)).isoformat()
+    allc = contracts(today, back=4, ahead=4)
     for r in pr.values():
         r["note"] = ""
-    try:
-        rows, meta = yahoo("NG=F", "1mo")
-        for d, c in rows:
-            pr.setdefault(d, {"date": d, "ng_front": "", "hh_spot": "", "note": ""})["ng_front"] = f"{c:.3f}"
-        live = datetime.fromtimestamp(meta["regularMarketTime"], timezone.utc)
-        pl = live + timedelta(hours=1)  # czas polski zimowy
-        if rows:
-            pr[rows[-1][0]]["note"] = f"na żywo {pl:%Y-%m-%d %H:%M} PL"
-        status["ng_front"] = meta.get("regularMarketPrice")
-        status["ng_front_at"] = live.isoformat()
-    except Exception as e:
-        status["errors"].append(f"NG=F: {e}")
-    try:
-        html = get("https://www.eia.gov/dnav/ng/hist/rngwhhdD.htm", tries=3, wait=10).text
-        mon = {k: i + 1 for i, k in enumerate("Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split())}
-        for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", html, re.S | re.I):
-            cells = [re.sub(r"<[^>]+>|&nbsp;", " ", c).strip() for c in re.findall(r"<td[^>]*>(.*?)</td>", tr, re.S | re.I)]
-            if not cells:
-                continue
-            mt = re.match(r"(\d{4}) ?([A-Z][a-z]{2})-\s*(\d+)", cells[0])
-            if not mt:
-                continue
-            d0 = date(int(mt.group(1)), mon[mt.group(2)], int(mt.group(3)))
-            if d0 < today - timedelta(days=45):
-                continue
-            for i in range(1, 6):
-                v = cells[i] if i < len(cells) else ""
-                if v:
-                    d = (d0 + timedelta(days=i - 1)).isoformat()
-                    pr.setdefault(d, {"date": d, "ng_front": "", "hh_spot": "", "note": ""})["hh_spot"] = v
-    except Exception as e:
-        status["errors"].append(f"Henry Hub: {e}")
-    cutoff = (today - timedelta(days=60)).isoformat()
+    for (d, code), r in cp.items():
+        if d < cutoff:
+            continue
+        try:
+            if cfd_contract(date.fromisoformat(d), allc)[0] == code:
+                pr.setdefault(d, {"date": d, "ng_front": "", "hh_spot": "", "note": ""})["ng_front"] = r["close"]
+        except StopIteration:
+            pass
+    m = live.get(cur[0])
+    if m:
+        lt_at = datetime.fromtimestamp(m["regularMarketTime"], timezone.utc)
+        d = today.isoformat()
+        if (d, cur[0]) in cp:
+            pr[d]["note"] = f"na żywo {lt_at.astimezone(ZoneInfo('Europe/Warsaw')):%Y-%m-%d %H:%M} PL ({cur[0]})"
+        status["ng_front"] = m.get("regularMarketPrice")
+        status["ng_front_at"] = lt_at.isoformat()
+        status["ng_contract"] = cur[0]
+        status["cfd_roll_next"] = cur[2].isoformat()
+    if with_hh:
+        try:
+            html = get("https://www.eia.gov/dnav/ng/hist/rngwhhdD.htm", tries=3, wait=10).text
+            mon = {k: i + 1 for i, k in enumerate("Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split())}
+            for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", html, re.S | re.I):
+                cells = [re.sub(r"<[^>]+>|&nbsp;", " ", c).strip() for c in re.findall(r"<td[^>]*>(.*?)</td>", tr, re.S | re.I)]
+                if not cells:
+                    continue
+                mt = re.match(r"(\d{4}) ?([A-Z][a-z]{2})-\s*(\d+)", cells[0])
+                if not mt:
+                    continue
+                d0 = date(int(mt.group(1)), mon[mt.group(2)], int(mt.group(3)))
+                if d0 < today - timedelta(days=45):
+                    continue
+                for k in range(1, 6):
+                    v = cells[k] if k < len(cells) else ""
+                    if v:
+                        d = (d0 + timedelta(days=k - 1)).isoformat()
+                        pr.setdefault(d, {"date": d, "ng_front": "", "hh_spot": "", "note": ""})["hh_spot"] = v
+        except Exception as e:
+            status["errors"].append(f"Henry Hub: {e}")
     write_csv("prices.csv", ["date", "ng_front", "hh_spot", "note"], sorted([r["date"], r.get("ng_front", ""), r.get("hh_spot", ""), r.get("note", "")] for r in pr.values() if r["date"] >= cutoff))
+
+
+def write_price_status(started):
+    ps = {k: status.get(k) for k in ("ng_front", "ng_front_at", "ng_contract", "cfd_roll_next")}
+    ps["errors"] = [e for e in status["errors"] if e.startswith(("NG", "Henry", "ceny"))]
+    ps["started"] = started
+    ps["at"] = datetime.now(timezone.utc).isoformat()
+    json.dump(ps, open(os.path.join(D, "prices_status.json"), "w"), ensure_ascii=False, indent=1)
+    print(json.dumps(ps, ensure_ascii=False, indent=1))
 
 
 def main_weather():
@@ -438,7 +541,20 @@ def main_weather():
 
 
 if __name__ == "__main__":
-    status["started"] = datetime.now(timezone.utc).isoformat()
+    import sys
+    started = datetime.now(timezone.utc).isoformat()
+    if len(sys.argv) > 1 and sys.argv[1] == "ceny":
+        # Szybki odczyt samych cen (osobny workflow, co 30 min). Poza sesją NYMEX nic nie robi.
+        if not market_open(datetime.now(timezone.utc)) and "--force" not in sys.argv:
+            print("rynek zamknięty – pomijam")
+            sys.exit(0)
+        try:
+            prices(with_hh=False)
+        except Exception as e:
+            status["errors"].append(f"ceny: {e}")
+        write_price_status(started)
+        sys.exit(0)
+    status["started"] = started
     try:
         main_weather()
     except Exception as e:
@@ -450,3 +566,4 @@ if __name__ == "__main__":
     status["finished"] = datetime.now(timezone.utc).isoformat()
     json.dump(status, open(os.path.join(D, "status.json"), "w"), ensure_ascii=False, indent=1)
     print(json.dumps(status, ensure_ascii=False, indent=1))
+    write_price_status(started)
