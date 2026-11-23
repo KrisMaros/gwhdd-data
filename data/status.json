@@ -1,14 +1,39 @@
 {
- "errors": [
-  "normy 44.48,-73.21: limit zapytań: https://archive-api.open-meteo.com/v1/archive?latitude=44.48&longitude=-73.21&st",
-  "pogoda: limit zapytań: https://api.open-meteo.com/v1/forecast?latitude=40.71,40.74,42.36,39.95,40.44,38"
- ],
+ "errors": [],
  "notes": [
-  "normy jeszcze liczone (58/64 punktów) – na razie stare wagi"
+  "nowe wagi (v2) – historia odczytów zaczęta od nowa"
  ],
- "started": "2026-11-22T23:19:05.696439+00:00",
- "weights": "v1 (23 miasta, wagi przybliżone)",
- "ng_front": 3.649,
- "ng_front_at": "2026-11-22T23:34:47+00:00",
- "finished": "2026-11-22T23:44:50.605949+00:00"
+ "started": "2026-11-23T02:54:08.745742+00:00",
+ "weights": "v2 (EIA 2025, 64 punktów)",
+ "demand": {
+  "base_bcfd": 6.585,
+  "slope_bcfd_per_gwhdd": 1.1386,
+  "r2": 0.985,
+  "comm_share": 0.427,
+  "weekday_factor": 1.0148,
+  "weekend_factor": 0.9629,
+  "eia_year": "2025",
+  "years": "2021–2025"
+ },
+ "new_runs": true,
+ "runs": {
+  "ECMWF": "2026-11-22 18Z",
+  "GFS": "2026-11-22 18Z",
+  "ICON": "2026-11-22 18Z",
+  "EPS": "2026-11-22 12Z",
+  "GEFS": "2026-11-22 18Z",
+  "GEPS": "2026-11-22 12Z",
+  "GEM": "",
+  "NORMA": "ERA5 1996-2025"
+ },
+ "snapshot": "2026-11-23 02:56Z",
+ "dev_6_10": {
+  "EPS": -17.5,
+  "GEFS": -29.7,
+  "ECMWF": -19.8,
+  "GFS": -35.8
+ },
+ "ng_front": 3.616,
+ "ng_front_at": "2026-11-23T02:45:44+00:00",
+ "finished": "2026-11-23T02:56:16.334974+00:00"
 }
