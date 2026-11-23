@@ -1,0 +1,33 @@
+name: Ceny gazu (szybki odczyt)
+
+on:
+  schedule:
+    # co 30 minut; poza sesją NYMEX skrypt od razu kończy pracę
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# ta sama grupa co odczyt modeli – nigdy nie działają jednocześnie, więc nie ma konfliktów przy zapisie
+concurrency: gwhdd
+
+jobs:
+  ceny:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install requests
+      - run: python gwhdd.py ceny
+      - name: Zapisz ceny
+        run: |
+          git config user.name "gwhdd-bot"
+          git config user.email "gwhdd-bot@users.noreply.github.com"
+          git add data
+          git commit -m "Ceny $(date -u +%Y-%m-%dT%H:%MZ)" || exit 0
+          git pull --rebase -X theirs || true
+          git push
