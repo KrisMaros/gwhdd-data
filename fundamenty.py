@@ -78,6 +78,13 @@ def lng():
     if not m or m.group(1) not in MON:
         raise RuntimeError("EIA NGWU: nie znaleziono daty tygodnia")
     week = datetime(int(m.group(3)), MON[m.group(1)], int(m.group(2))).date().isoformat()
+    age = (datetime.now(timezone.utc).date() - datetime.fromisoformat(week).date()).days
+    if age > 21:
+        # strona EIA nie była aktualizowana – nie zapisujemy starych danych, a stary wiersz usuwamy
+        rows = [r for r in read_csv("lng.csv") if r["week_ending"] != week]
+        write_csv("lng.csv", ["week_ending", "feedgas_bcfd", "source"], [[r["week_ending"], r["feedgas_bcfd"], r["source"]] for r in rows])
+        status["lng_stale"] = week
+        raise RuntimeError(f"EIA NGWU nieaktualny (ostatnie wydanie: tydzień do {week})")
     val = None
     for v in re.finditer(r"averag\w*\s+(?:of\s+)?(\d{1,2}\.\d)\s*Bcf/d", text):
         before = text[max(0, v.start() - 250):v.start()]
@@ -106,7 +113,7 @@ if __name__ == "__main__":
         old = json.load(open(p))
     # zachowaj ostatnie dobre wartości, gdy źródło chwilowo nie odpowiada
     for k in ("cot", "lng"):
-        if k not in status and k in old:
+        if k not in status and k in old and not (k == "lng" and old[k].get("week_ending") == status.get("lng_stale")):
             status[k] = old[k]
     changed = any(status.get(k) != old.get(k) for k in ("cot", "lng"))
     status["at"] = datetime.now(timezone.utc).isoformat() if changed or "at" not in old else old["at"]
