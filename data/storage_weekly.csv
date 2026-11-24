@@ -1,27 +1,22 @@
 week_ending,stocks_bcf,net_change_bcf,avg5_stocks_bcf,avg5_change_bcf,year_ago_stocks_bcf,basis
-2026-05-22,2483,92,2388,95,2476,EIA API; średnia 5-letnia z historii EIA (±3 dni)
-2026-05-29,2578,95,2492,104,2598,EIA API; średnia 5-letnia z historii EIA (±3 dni)
-2026-06-05,2686,108,2567,75,2707,EIA API; średnia 5-letnia z historii EIA (±3 dni)
-2026-06-12,2759,73,2645,78,2802,EIA API; średnia 5-letnia z historii EIA (±3 dni)
-2026-06-19,2835,76,2723,77,2898,EIA API; średnia 5-letnia z historii EIA (±3 dni)
-2026-06-26,2922,87,2771,48,2953,EIA API; średnia 5-letnia z historii EIA (±3 dni)
-2026-07-03,2983,61,2827,56,3006,EIA API; średnia 5-letnia z historii EIA (±3 dni)
-2026-07-10,3024,41,2862,36,3052,EIA API; średnia 5-letnia z historii EIA (±3 dni)
-2026-07-17,3056,32,2885,22,3075,EIA API; średnia 5-letnia z historii EIA (±3 dni)
-2026-07-24,3084,28,2911,27,3123,EIA API; średnia 5-letnia z historii EIA (±3 dni)
-2026-07-31,3117,33,2941,30,3130,EIA API; średnia 5-letnia z historii EIA (±3 dni)
-2026-08-07,3153,36,2971,30,3186,EIA API; średnia 5-letnia z historii EIA (±3 dni)
-2026-08-14,3169,16,3002,31,3199,EIA API; średnia 5-letnia z historii EIA (±3 dni)
-2026-08-21,3184,15,3035,33,3217,EIA API; średnia 5-letnia z historii EIA (±3 dni)
-2026-08-28,3214,30,3075,39,3262,EIA API; średnia 5-letnia z historii EIA (±3 dni)
-2026-09-04,3254,40,3140,66,3333,EIA API; średnia 5-letnia z historii EIA (±3 dni)
-2026-09-11,3298,44,3219,78,3423,EIA API; średnia 5-letnia z historii EIA (±3 dni)
-2026-09-18,3351,53,3300,81,3499,EIA API; średnia 5-letnia z historii EIA (±3 dni)
-2026-09-25,3415,64,3388,88,3551,EIA API; średnia 5-letnia z historii EIA (±3 dni)
-2026-10-02,3500,85,3478,90,3631,EIA API; średnia 5-letnia z historii EIA (±3 dni)
-2026-10-09,3567,67,3569,91,3712,EIA API; średnia 5-letnia z historii EIA (±3 dni)
-2026-10-16,3644,77,3645,76,3798,EIA API; średnia 5-letnia z historii EIA (±3 dni)
-2026-10-23,3724,80,3725,80,3872,EIA API; średnia 5-letnia z historii EIA (±3 dni)
-2026-10-30,3801,77,3761,36,3905,EIA API; średnia 5-letnia z historii EIA (±3 dni)
-2026-11-06,3862,61,3809,47,3950,EIA API; średnia 5-letnia z historii EIA (±3 dni)
-2026-11-13,3882,20,3784,-25,3936,EIA API; średnia 5-letnia z historii EIA (±3 dni)
+2026-06-26,2922,87,2740,64,2953,historia z panelu
+2026-07-03,2983,61,2794,54,3006,historia z panelu
+2026-07-10,3024,41,2838,44,3052,historia z panelu
+2026-07-17,3056,32,2871,33,3075,historia z panelu
+2026-07-24,3084,28,2898,27,3123,historia z panelu
+2026-07-31,3117,33,2917,19,3130,historia z panelu
+2026-08-07,3153,36,2951,34,3186,historia z panelu
+2026-08-14,3169,16,2981,29,3199,historia z panelu
+2026-08-21,3184,15,3013,32,3217,historia z panelu
+2026-08-28,3214,30,3047,34,3262,historia z panelu
+2026-09-04,3254,40,3097,50,3333,historia z panelu
+2026-09-11,3298,44,3170,73,3423,historia z panelu
+2026-09-18,3351,53,3243,73,3499,historia z panelu
+2026-09-25,3415,64,3321,78,3551,historia z panelu
+2026-10-02,3500,85,3420,99,3631,historia z panelu
+2026-10-09,3567,67,3509,89,3712,historia z panelu
+2026-10-16,3644,77,3602,93,3798,historia z panelu
+2026-10-23,3724,80,3676,73,3872,historia z panelu
+2026-10-30,3801,77,3745,70,3905,historia z panelu
+2026-11-06,3862,61,3787,40,3954,historia z panelu
+2026-11-13,3882,20,3784,-3,3936,API EIA (średnia 5-letnia przybliżona)
