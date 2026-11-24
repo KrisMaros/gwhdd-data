@@ -69,7 +69,8 @@ def weekly_rows():
 
 def official():
     """Raport EIA z pliku wngsr.json (oficjalne średnie 5-letnie, bez klucza API)."""
-    j = requests.get(WNGSR, params={"t": str(int(datetime.now().timestamp()))}, headers={"Cache-Control": "no-cache", "User-Agent": "Mozilla/5.0 (gwhdd-dashboard)"}, timeout=60).json()
+    j = requests.get(WNGSR, params={"t": str(int(datetime.now().timestamp()))}, headers={"Cache-Control": "no-cache", "User-Agent": "Mozilla/5.0 (gwhdd-dashboard)"}, timeout=60)
+    j = json.loads(j.content.decode("utf-8-sig"))  # plik EIA ma znacznik BOM na początku
     y, m, d = j["release_date"][:11].split("-")
     rd = date(int(y), MONS[m], int(d)).isoformat()
     wk = j["current_week"][:10]
