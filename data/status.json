@@ -1,9 +1,7 @@
 {
  "errors": [],
- "notes": [
-  "nowe wagi (v2) – historia odczytów zaczęta od nowa"
- ],
- "started": "2026-11-24T19:01:12.908482+00:00",
+ "notes": [],
+ "started": "2026-11-24T21:01:10.145338+00:00",
  "weights": "v2 (EIA 2025, 64 punktów)",
  "demand": {
   "base_bcfd": 6.585,
@@ -17,7 +15,7 @@
  },
  "new_runs": true,
  "runs": {
-  "ECMWF": "2026-11-24 06Z",
+  "ECMWF": "2026-11-24 12Z",
   "GFS": "2026-11-24 12Z",
   "ICON": "2026-11-24 12Z",
   "EPS": "2026-11-24 06Z",
@@ -26,16 +24,16 @@
   "GEM": "",
   "NORMA": "ERA5 1996-2025"
  },
- "snapshot": "2026-11-24 19:01Z",
+ "snapshot": "2026-11-24 21:01Z",
  "dev_6_10": {
   "EPS": -16.5,
   "GEFS": -31.6,
-  "ECMWF": -20.0,
+  "ECMWF": -15.9,
   "GFS": -31.7
  },
- "ng_front": 3.719,
- "ng_front_at": "2026-11-24T18:51:17+00:00",
+ "ng_front": 3.685,
+ "ng_front_at": "2026-11-24T20:50:40+00:00",
  "ng_contract": "NGF27",
  "cfd_roll_next": "2026-12-23",
- "finished": "2026-11-24T19:01:17.921234+00:00"
+ "finished": "2026-11-24T21:01:14.097311+00:00"
 }
