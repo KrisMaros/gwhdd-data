@@ -1,16 +1,14 @@
 {
  "errors": [],
- "notes": [
-  "wngsr.json niedostępny (Unexpected UTF-8 BOM (decode using utf-8-sig): line 1 column 1 (char 0)) – używam API EIA"
- ],
- "started": "2026-11-24T18:14:23.386187+00:00",
+ "notes": [],
+ "started": "2026-11-24T18:18:11.922478+00:00",
  "week_ending": "2026-11-13",
- "release_date": "2026-11-24",
- "source": "API EIA (średnia 5-letnia przybliżona)",
- "stocks_bcf": 3882.0,
+ "release_date": "2026-11-19",
+ "source": "raport EIA (wngsr.json)",
+ "stocks_bcf": 3882,
  "net_change_bcf": 20.0,
- "avg5_change_bcf": -3.0,
- "vs_avg5_bcf": 23.0,
+ "avg5_change_bcf": 15.0,
+ "vs_avg5_bcf": 5.0,
  "next_release": "2026-11-25",
- "at": "2026-11-24T18:14:24.007955+00:00"
+ "at": "2026-11-24T18:18:12.108418+00:00"
 }
