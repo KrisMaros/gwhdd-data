@@ -1,0 +1,17 @@
+{
+ "errors": [],
+ "notes": [],
+ "started": "2026-11-24T17:33:59.290340+00:00",
+ "cot": {
+  "report_date": "2026-11-17",
+  "mm_net": -211545,
+  "mm_net_change": 12918,
+  "percentile_3y": 2,
+  "market": "NAT GAS NYME - NEW YORK MERCANTILE EXCHANGE"
+ },
+ "lng": {
+  "week_ending": "2026-01-21",
+  "feedgas_bcfd": 16.3
+ },
+ "at": "2026-11-24T17:34:03.363481+00:00"
+}
