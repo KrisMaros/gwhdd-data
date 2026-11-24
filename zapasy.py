@@ -22,6 +22,72 @@ SERIES = [  # (seria EIA, nazwa w panelu)
 ]
 status = {"errors": [], "notes": []}
 
+SEED = """2026-06-26,2922,87,2740,64,2953
+2026-07-03,2983,61,2794,54,3006
+2026-07-10,3024,41,2838,44,3052
+2026-07-17,3056,32,2871,33,3075
+2026-07-24,3084,28,2898,27,3123
+2026-07-31,3117,33,2917,19,3130
+2026-08-07,3153,36,2951,34,3186
+2026-08-14,3169,16,2981,29,3199
+2026-08-21,3184,15,3013,32,3217
+2026-08-28,3214,30,3047,34,3262
+2026-09-04,3254,40,3097,50,3333
+2026-09-11,3298,44,3170,73,3423
+2026-09-18,3351,53,3243,73,3499
+2026-09-25,3415,64,3321,78,3551
+2026-10-02,3500,85,3420,99,3631
+2026-10-09,3567,67,3509,89,3712
+2026-10-16,3644,77,3602,93,3798
+2026-10-23,3724,80,3676,73,3872
+2026-10-30,3801,77,3745,70,3905
+2026-11-06,3862,61,3787,40,3954
+2026-11-13,3882,20,3802,15,3948"""  # dotychczasowa historia z panelu (średnie 5-letnie wg EIA/mediów)
+WNGSR = "https://ir.eia.gov/ngs/wngsr.json"
+NAMES = {"total lower 48 states": "Razem Lower 48", "east region": "Wschód", "midwest region": "Środkowy Zachód", "mountain region": "Góry Skaliste",
+         "pacific region": "Pacyfik", "south central region": "Południowe Centrum", "south central salt region": "– w tym kawerny solne",
+         "south central nonsalt region": "– w tym pozostałe"}
+MONS = {m: i + 1 for i, m in enumerate("Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split())}
+WH = ["week_ending", "stocks_bcf", "net_change_bcf", "avg5_stocks_bcf", "avg5_change_bcf", "year_ago_stocks_bcf", "basis"]
+RH = ["release_date", "next_release", "week_ending", "region", "stocks_bcf", "net_change_bcf", "avg5_stocks_bcf", "pct_vs_5yr", "year_ago_stocks_bcf", "pct_vs_year_ago"]
+
+
+def read_csv(name):
+    p = os.path.join(D, name)
+    if not os.path.exists(p):
+        return []
+    with open(p, newline="", encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
+def weekly_rows():
+    rows = [r for r in read_csv("storage_weekly.csv") if not r.get("basis", "").startswith("EIA API")]
+    if not rows:
+        rows = [dict(zip(WH, l.split(",") + ["historia z panelu"])) for l in SEED.splitlines()]
+    return {r["week_ending"]: r for r in rows}
+
+
+def official():
+    """Raport EIA z pliku wngsr.json (oficjalne średnie 5-letnie, bez klucza API)."""
+    j = requests.get(WNGSR, params={"t": str(int(datetime.now().timestamp()))}, headers={"Cache-Control": "no-cache", "User-Agent": "Mozilla/5.0 (gwhdd-dashboard)"}, timeout=60).json()
+    y, m, d = j["release_date"][:11].split("-")
+    rd = date(int(y), MONS[m], int(d)).isoformat()
+    wk = j["current_week"][:10]
+    reg, tot = [], None
+    for s in j["series"]:
+        c = s["calculated"]
+        cur = next((x[1] for x in s["data"] if x[0] == j["current_week"]), None)
+        ya = next((x[1] for x in s["data"] if x[0] == j["year_ago"]), None)
+        name = NAMES.get(s["name"].lower(), s["name"])
+        reg.append([rd, next_release(wk), wk, name, cur, c.get("net_change"), c.get("5yr-avg"), c.get("pct-chg_5yr-avg"), ya if ya is not None else "", c.get("pct-change_yrago")])
+        if s["name"].lower() == "total lower 48 states":
+            tot = {"stocks": cur, "net": c.get("net_change"), "avg5": c.get("5yr-avg"), "ya": ya}
+    if tot is None:
+        raise RuntimeError("wngsr.json: brak sumy Lower 48")
+    return rd, wk, reg, tot
+
+
+
 
 def write_csv(name, header, rows):
     with open(os.path.join(D, name), "w", newline="", encoding="utf-8") as f:
@@ -97,43 +163,56 @@ def next_release(week_end):
     return d.isoformat()
 
 
+def save_weekly(W):
+    rows = sorted(W.values(), key=lambda r: r["week_ending"])[-30:]
+    write_csv("storage_weekly.csv", WH, [[r.get(k, "") for k in WH] for r in rows])
+
+
 if __name__ == "__main__":
     status["started"] = datetime.now(timezone.utc).isoformat()
     p = os.path.join(D, "storage_status.json")
     old = json.load(open(p)) if os.path.exists(p) else {}
+    W = weekly_rows()
     try:
-        S = fetch()
-        tot = S["NW2_EPG0_SWO_R48_BCF"]
-        last = max(tot)
-        if old.get("week_ending") == last:
-            print("bez nowego raportu:", last)
+        try:
+            rd, wk, reg, tot = official()
+            src = "raport EIA (wngsr.json)"
+        except Exception as e:
+            status["notes"].append(f"wngsr.json niedostępny ({str(e)[:120]}) – używam API EIA")
+            S = fetch()
+            ser = S["NW2_EPG0_SWO_R48_BCF"]
+            wk = max(ser)
+            cur, chg, a5, c5, ya = stats(ser, wk)
+            rd = datetime.now(timezone.utc).date().isoformat()
+            tot = {"stocks": cur, "net": chg, "avg5": a5, "ya": ya}
+            reg = []
+            for s_, name in SERIES:
+                if wk in S[s_]:
+                    c_, ch_, a_, _, y_ = stats(S[s_], wk)
+                    pc = lambda a, b: "" if b in (None, 0) else round(100.0 * (a - b) / b, 1)
+                    reg.append([rd, next_release(wk), wk, name, c_, ch_, "" if a_ is None else round(a_), pc(c_, a_), "" if y_ is None else y_, pc(c_, y_)])
+            src = "API EIA (średnia 5-letnia przybliżona)"
+        if old.get("week_ending") == wk and wk in W and old.get("source", "").startswith("raport EIA"):
+            print("bez nowego raportu:", wk)
             raise SystemExit(0)
-        rows = []
-        for d in sorted(tot)[-26:]:
-            cur, chg, a5, c5, ya = stats(tot, d)
-            r = lambda v: "" if v is None else f"{v:.0f}"
-            rows.append([d, r(cur), r(chg), r(a5), r(c5), r(ya), "EIA API; średnia 5-letnia z historii EIA (±3 dni)"])
-        write_csv("storage_weekly.csv", ["week_ending", "stocks_bcf", "net_change_bcf", "avg5_stocks_bcf", "avg5_change_bcf", "year_ago_stocks_bcf", "basis"], rows)
-        today = datetime.now(timezone.utc).date().isoformat()
-        nr = next_release(last)
-        reg = []
-        for s, name in SERIES:
-            if last not in S[s]:
-                status["errors"].append(f"brak {name} dla {last}")
-                continue
-            cur, chg, a5, c5, ya = stats(S[s], last)
-            pct = lambda a, b: "" if b in (None, 0) else f"{100.0 * (a - b) / b:.1f}"
-            reg.append([today, nr, last, name, f"{cur:.0f}", "" if chg is None else f"{chg:.0f}", "" if a5 is None else f"{a5:.0f}", pct(cur, a5), "" if ya is None else f"{ya:.0f}", pct(cur, ya)])
-        write_csv("storage_regions.csv", ["release_date", "next_release", "week_ending", "region", "stocks_bcf", "net_change_bcf", "avg5_stocks_bcf", "pct_vs_5yr", "year_ago_stocks_bcf", "pct_vs_year_ago"], reg)
-        cur, chg, a5, c5, ya = stats(tot, last)
-        status.update({"week_ending": last, "stocks_bcf": cur, "net_change_bcf": chg, "avg5_change_bcf": None if c5 is None else round(c5),
-                       "vs_avg5_bcf": None if (chg is None or c5 is None) else round(chg - c5), "next_release": nr,
-                       "at": datetime.now(timezone.utc).isoformat()})
+        prevk = (date.fromisoformat(wk) - timedelta(days=7)).isoformat()
+        a5c = ""
+        if tot["avg5"] not in (None, "") and prevk in W and W[prevk].get("avg5_stocks_bcf") not in (None, ""):
+            a5c = f"{float(tot['avg5']) - float(W[prevk]['avg5_stocks_bcf']):.0f}"
+        f0 = lambda v: "" if v in (None, "") else f"{float(v):.0f}"
+        W[wk] = {"week_ending": wk, "stocks_bcf": f0(tot["stocks"]), "net_change_bcf": f0(tot["net"]), "avg5_stocks_bcf": f0(tot["avg5"]),
+                 "avg5_change_bcf": a5c, "year_ago_stocks_bcf": f0(tot["ya"]), "basis": src}
+        save_weekly(W)
+        write_csv("storage_regions.csv", RH, [["" if v is None else v for v in r] for r in reg])
+        net = None if tot["net"] in (None, "") else float(tot["net"])
+        status.update({"week_ending": wk, "release_date": rd, "source": src, "stocks_bcf": tot["stocks"], "net_change_bcf": net,
+                       "avg5_change_bcf": None if a5c == "" else float(a5c), "vs_avg5_bcf": None if (net is None or a5c == "") else net - float(a5c),
+                       "next_release": next_release(wk), "at": datetime.now(timezone.utc).isoformat()})
     except SystemExit:
         raise
     except Exception as e:
         status["errors"].append(str(e)[:300])
-        for k in ("week_ending", "stocks_bcf", "net_change_bcf", "avg5_change_bcf", "vs_avg5_bcf", "next_release", "at"):
+        for k in ("week_ending", "release_date", "source", "stocks_bcf", "net_change_bcf", "avg5_change_bcf", "vs_avg5_bcf", "next_release", "at"):
             if k in old:
                 status[k] = old[k]
     json.dump(status, open(p, "w"), ensure_ascii=False, indent=1)
