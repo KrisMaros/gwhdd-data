@@ -1,13 +1,10 @@
 {
- "errors": [
-  "pogoda: limit zapytań: https://api.open-meteo.com/v1/forecast?latitude=40.71,40.74,42.36,39.95,40.44,38"
- ],
+ "errors": [],
  "notes": [
-  "limit zapytań: https://api.open-meteo.com/v1/forecast?latitude=33.52,33.45,34.75,34.05,37.77,38",
-  "nowe wagi (v1) – historia odczytów zaczęta od nowa"
+  "nowe wagi (v2) – historia odczytów zaczęta od nowa"
  ],
- "started": "2026-11-24T17:01:11.671994+00:00",
- "weights": "v1 (23 miasta, wagi przybliżone)",
+ "started": "2026-11-24T19:01:12.908482+00:00",
+ "weights": "v2 (EIA 2025, 64 punktów)",
  "demand": {
   "base_bcfd": 6.585,
   "slope_bcfd_per_gwhdd": 1.1386,
@@ -18,9 +15,27 @@
   "eia_year": "2025",
   "years": "2021–2025"
  },
- "ng_front": 3.72,
- "ng_front_at": "2026-11-24T17:04:12+00:00",
+ "new_runs": true,
+ "runs": {
+  "ECMWF": "2026-11-24 06Z",
+  "GFS": "2026-11-24 12Z",
+  "ICON": "2026-11-24 12Z",
+  "EPS": "2026-11-24 06Z",
+  "GEFS": "2026-11-24 12Z",
+  "GEPS": "2026-11-24 12Z",
+  "GEM": "",
+  "NORMA": "ERA5 1996-2025"
+ },
+ "snapshot": "2026-11-24 19:01Z",
+ "dev_6_10": {
+  "EPS": -16.5,
+  "GEFS": -31.6,
+  "ECMWF": -20.0,
+  "GFS": -31.7
+ },
+ "ng_front": 3.719,
+ "ng_front_at": "2026-11-24T18:51:17+00:00",
  "ng_contract": "NGF27",
  "cfd_roll_next": "2026-12-23",
- "finished": "2026-11-24T17:14:14.406207+00:00"
+ "finished": "2026-11-24T19:01:17.921234+00:00"
 }
