@@ -533,6 +533,13 @@ def main_weather():
         status["demand"] = dm
         weather([[f"{p[1]} ({p[0]})", p[2], p[3], p[5]] for p in pts], N, "v2")
     except Exception as e:
+        vfile = os.path.join(D, "weights_version.txt")
+        if os.path.exists(vfile) and open(vfile).read().strip() == "v2":
+            # wagi v2 już działały – chwilowy błąd nie może przełączać wag (to kasowałoby historię odczytów);
+            # zostawiamy poprzednie dane bez zmian, kolejne uruchomienie spróbuje ponownie
+            status["errors"].append(f"odczyt pominięty, dane bez zmian: {e}"[:300])
+            status["skipped"] = True
+            return
         status["notes"].append(str(e))
         N, _ = load_normals([(c[1], c[2]) for c in OLD])
         tot = sum(c[3] for c in OLD)
@@ -564,6 +571,16 @@ if __name__ == "__main__":
     except Exception as e:
         status["errors"].append(f"ceny: {e}")
     status["finished"] = datetime.now(timezone.utc).isoformat()
-    json.dump(status, open(os.path.join(D, "status.json"), "w"), ensure_ascii=False, indent=1)
+    sp = os.path.join(D, "status.json")
+    if status.get("skipped") and os.path.exists(sp):
+        # odczyt pominięty: zostaw poprzedni status (panel nie dostanie „nowego” odczytu), dopisz tylko błąd
+        prev = json.load(open(sp))
+        prev["last_error"] = {"at": status["finished"], "errors": status["errors"]}
+        for k in ("ng_front", "ng_front_at", "ng_contract", "cfd_roll_next"):
+            if k in status:
+                prev[k] = status[k]
+        prev["errors"] = [e for e in status["errors"] if e.startswith(("NG", "Henry", "ceny"))]
+        status = prev
+    json.dump(status, open(sp, "w"), ensure_ascii=False, indent=1)
     print(json.dumps(status, ensure_ascii=False, indent=1))
     write_price_status(started)
