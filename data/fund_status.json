@@ -1,7 +1,9 @@
 {
- "errors": [],
+ "errors": [
+  "LNG: EIA NGWU nieaktualny (ostatnie wydanie: tydzień do 2026-01-21)"
+ ],
  "notes": [],
- "started": "2026-11-24T17:49:58.942835+00:00",
+ "started": "2026-11-25T21:45:40.678596+00:00",
  "cot": {
   "report_date": "2026-11-17",
   "mm_net": -211545,
@@ -9,9 +11,6 @@
   "percentile_3y": 2,
   "market": "NAT GAS NYME - NEW YORK MERCANTILE EXCHANGE"
  },
- "lng": {
-  "week_ending": "2026-01-21",
-  "feedgas_bcfd": 16.3
- },
- "at": "2026-11-24T17:34:03.363481+00:00"
+ "lng_stale": "2026-01-21",
+ "at": "2026-11-25T21:45:42.532724+00:00"
 }
